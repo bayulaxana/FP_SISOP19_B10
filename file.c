@@ -165,7 +165,7 @@ static int list_dir(const char *path, void *buf, fuse_fill_dir_t filler,
 			st.st_ino = de->d_ino;
 			st.st_mode = de->d_type << 12;
 
-			printf("DD: %s %s\n", fname, de->d_name);
+			//printf("DD: %s %s\n", fname, de->d_name);
 
 			if (check(fname)) {
 				insert(fname, npath, &root, CmpStr);
@@ -189,6 +189,7 @@ static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	}
 	else sprintf(fpath, "%s%s",dirpath,path);
 	int res;
+	
 	res = list_dir(fpath, buf, filler, offset, fi);
 	//int res = 0;
 	// DIR *dp;

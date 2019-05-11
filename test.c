@@ -128,13 +128,12 @@ void in_order(node *root)
 
 int main()
 {
-    reg = regcomp(&regularEx, ".*\\.mp3$", 0);
-    if (reg) {
-        fprintf(stderr, "Could not compile regex\n");
-        return -1;
+    char str[1024];
+    char x[10];
+    while(1) {
+        scanf("%s",x);
+        sprintf(str, "%s", x);
+        printf("%s\n",str);
     }
-    
-    list_dir("/home/bayulaxana/Documents", 0);
-    in_order(root);
     return 0;
 }
