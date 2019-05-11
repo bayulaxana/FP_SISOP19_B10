@@ -6,6 +6,7 @@
 #include <pthread.h>
 #include <dirent.h>
 #include <sys/file.h>
+#include <unistd.h>
 #include <sys/types.h>
 #define BITS 8
 #define TRUE 1
@@ -39,6 +40,7 @@ void display_list(Node *head);
 int search(Node *head, char *str);
 void free_list(Node *head);
 char *find_next(Node *head, char *str);
+char *find_prev(Node *head, char *str);
 void *take_input(void *arg);
 void list_dir(const char *path);
 void *play_song(void *arg);
@@ -98,7 +100,7 @@ Node *add_node(Node *list, Node *node, char *str) {
 void display_list(Node *head) {
     int cnt = 1;
     while(head) {
-        printf("|- %d %s\n",cnt++, head->value);
+        printf("  |- %d %s\n",cnt++, head->value);
         head = head->next;
     }
 }
@@ -111,6 +113,25 @@ char *find_next(Node *head, char *str) {
             if (tmp->next == NULL) return head->value;
             return tmp->next->value;
         }
+        tmp = tmp->next;
+    }
+}
+
+char *find_prev(Node *head, char *str) {
+    Node *tmp = head;
+    Node *prev = NULL;
+    while(tmp) {
+        int a = strcmp(tmp->value, str);
+        if (a == 0) {
+            if (prev == NULL) {
+                while(tmp) {
+                    if (tmp->next == NULL) return tmp->value;
+                    tmp = tmp->next;
+                }
+            }
+            return prev->value;
+        }
+        prev = tmp;
         tmp = tmp->next;
     }
 }
@@ -160,12 +181,14 @@ void *take_input(void *arg)
                 pthread_cancel(tid[1]);
                 play_status = TRUE;
                 sprintf(now_playing, "%s", name);
-                printf("|- Next playing %s\n",find_next(head, now_playing));
                 pthread_create(&(tid[1]), NULL, &play_song, name);
             } 
             else {
-                puts("|- File not found");
+                puts("  |- File not found");
             }
+        }
+        else if (strcmp("pause", input) == 0) {
+            play_status = (play_status==TRUE? FALSE:TRUE);
         }
         else if (strcmp("stop", input) == 0) {
             pthread_cancel(tid[1]);
@@ -177,6 +200,11 @@ void *take_input(void *arg)
         else if (strcmp("next",input) == 0) {
             pthread_cancel(tid[1]);
             sprintf(now_playing, "%s", find_next(head, now_playing));
+            pthread_create(&(tid[1]), NULL, &play_song, now_playing);
+        }
+        else if (strcmp("prev",input) == 0) {
+            pthread_cancel(tid[1]);
+            sprintf(now_playing, "%s", find_prev(head, now_playing));
             pthread_create(&(tid[1]), NULL, &play_song, now_playing);
         } 
         else if (strcmp("exit", input) == 0) {
@@ -220,8 +248,15 @@ void *play_song(void *arg) {
         dev = ao_open_live(driver, &format, NULL);
 
         /* decode and play */
-        while (mpg123_read(mh, buffer, buffer_size, &done) == MPG123_OK){
-            ao_play(dev, buffer, done);
+        int errm = mpg123_read(mh, buffer, buffer_size, &done);
+        while (1){
+            if(play_status){ // paused
+                ao_play(dev, buffer, done);
+                errm = mpg123_read(mh, buffer, buffer_size, &done);
+
+                if(errm != MPG123_OK) break;
+            }
+            sleep(0.01);
         }
         flag = 1;
     }
