@@ -98,6 +98,7 @@ Node *add_node(Node *list, Node *node, char *str) {
 }
 
 void display_list(Node *head) {
+    puts("");
     int cnt = 1;
     while(head) {
         printf("  |- %d %s\n",cnt++, head->value);
@@ -146,6 +147,17 @@ int search(Node *head, char *str) {
     return 0;
 }
 
+char *search_by_id(Node *head, int id) {
+    if (id == 0 || id < 0) return " ";
+    int cnt = 1;
+    while(head) {
+        if (id == cnt) return head->value;
+        cnt++;
+        head = head->next;
+    }
+    return " ";
+}
+
 void free_list(Node *head) {
 	Node *prev = head;
 	Node *cur = head;
@@ -172,12 +184,39 @@ void list_dir(const char *path) {
 
 void *take_input(void *arg) 
 {
-    char input[100], name[1000];
+    char input[100], name[100];
+    int id;
     while(1) {
+        system("clear");
+        
+        printf("===== CONSOLE BASED MP3 PLAYER =====\n");
+        printf("========== BY SISOP B10 ============\n");
+        printf("\nType 'help' to see all available commands!\n");
+
+        printf("> ");
         scanf("%s",input);
+
+        if (strcmp(input, "help") == 0) {
+            char x;
+            printf("\n  Commands available:\n\n");
+            printf("  |- 'play' to play music by the id.\n");
+            printf("  |- 'pause' to pause/resume the current song.\n");
+            printf("  |- 'next' to play the next song.\n");
+            printf("  |- 'prev' to play the previous song.\n");
+            printf("  |- 'list' to display list of songs.\n");
+            printf("  |- 'stop' to stop the current song.\n");
+            printf("  |- 'exit' to exit the program.\n\n");
+
+            printf("  Input 'y' to continue ");
+            scanf(" %c",&x);
+        }
+
         if (strcmp("play", input) == 0) {
-            scanf("%s",name);
-            if (search(head, name)) {
+            display_list(head);
+            printf("\n  Enter the id of the song: ");
+            scanf("%d",&id);
+            sprintf(name, "%s", search_by_id(head, id));
+            if (search(head, search_by_id(head,id))) {
                 pthread_cancel(tid[1]);
                 play_status = TRUE;
                 sprintf(now_playing, "%s", name);
@@ -195,7 +234,10 @@ void *take_input(void *arg)
             play_status = FALSE;
         }
         else if (strcmp("list",input) == 0) {
+            char x;
             display_list(head);
+            printf("\n  Input 'y' to continue ");
+            scanf(" %c",&x);
         }
         else if (strcmp("next",input) == 0) {
             pthread_cancel(tid[1]);
@@ -233,6 +275,7 @@ void *play_song(void *arg) {
         if (flag) {
             str = find_next(head, str);
             sprintf(fpath, "%s/%s", source_path,str);
+            sprintf(now_playing, "%s", str);
         }  
         
         /* open the file and get the decoding format */

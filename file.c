@@ -10,6 +10,8 @@
 #include <stdlib.h>
 #include <regex.h>
 #include <sys/file.h>
+#define TRUE 1
+#define FALSE 0
 
 static const char *dirpath = "/home/bayulaxana";
 
@@ -23,7 +25,20 @@ typedef struct t_node {
 typedef int (*Compare)(const char *, const char *);
 regex_t regularEx;
 int reg;
+int listed_dir;
 node *root = NULL;
+
+char *handle_duplicate(char *str, int n) 
+{
+    int l_occur;
+    char *pch = strrchr(str, '.');
+    if (pch == NULL) return "";
+    l_occur = pch-str+1;
+    char *new = malloc(sizeof(char)*1024);
+    snprintf(new, l_occur, "%s", str);
+    sprintf(new, "%s_(%d).mp3", new,n);
+    return new;
+}
 
 void insert(char* key, char *path, node** leaf, Compare cmp)
 {
@@ -45,8 +60,8 @@ void insert(char* key, char *path, node** leaf, Compare cmp)
             insert( key, path, &(*leaf)->p_right, cmp);
         else {
             (*leaf)->cnt += 1;
-            char tmp[strlen(key)+555];
-            sprintf(tmp, "%s__%d", key, (*leaf)->cnt);
+            char *tmp;
+            tmp = handle_duplicate(key, (*leaf)->cnt);
             insert(tmp, path, &(*leaf)->p_right, cmp);
         }
     }
@@ -69,6 +84,22 @@ char *search(char* key, node* leaf, Compare cmp)  // no need for **
             return (leaf)->path;   // string type
     }
     else return "";
+}
+
+void search_path(char* path_to, char *buff, node* leaf, Compare cmp, int flag)  // no need for **
+{
+    int res;
+	if (flag) return;
+	if (leaf == NULL) return;
+    if( leaf != NULL ) {
+		res = strcmp(path_to, leaf->path);
+		if (res==0) {
+			flag = 1;
+			sprintf(buff, "%s", leaf->value);
+		}
+		search_path(path_to, buff, leaf->p_left, cmp, flag);
+		search_path(path_to, buff, leaf->p_right, cmp, flag);
+    }
 }
 
 void delete_tree(node** leaf)
@@ -100,27 +131,22 @@ int check(const char *str)
 
 static void *pre_init(struct fuse_conn_info *conn)
 {
+	listed_dir = FALSE;
 	reg = regcomp(&regularEx, ".*\\.mp3$", 0);
     if (reg) {
         fprintf(stderr, "Could not compile regex\n");
         return NULL;
     }
-	insert("/","/home/bayulaxana/Documents", &root, CmpStr);
+	insert("/","/home/bayulaxana", &root, CmpStr);
 }
 
 static int xmp_getattr(const char *path, struct stat *stbuf)
 {
-    // int res;
-	// char fpath[1000];
-	// sprintf(fpath,"%s%s",dirpath,path);
-
-	// printf("[[LS]]-->%s\n", fpath);
-	int res;
+    int res;
 	char tmp[1024];
 	sprintf(tmp, "%s", path);
 
 	char *fpath = search(tmp, root, CmpStr);
-	printf("<<< %s >>>\n",fpath);
 	res = lstat(fpath, stbuf);
 
 	if (res == -1)
@@ -157,7 +183,7 @@ static int list_dir(const char *path, void *buf, fuse_fill_dir_t filler,
 			res = list_dir(new_f, buf, filler, offset, fi);
 		}
 		else {
-			char fname[1024], npath[1024];
+			char fname[1024], npath[1024], d_name[1024];
 			sprintf(fname, "/%s", de->d_name);
 			sprintf(npath, "%s/%s", path,de->d_name);
 			struct stat st;
@@ -165,11 +191,12 @@ static int list_dir(const char *path, void *buf, fuse_fill_dir_t filler,
 			st.st_ino = de->d_ino;
 			st.st_mode = de->d_type << 12;
 
-			//printf("DD: %s %s\n", fname, de->d_name);
-
 			if (check(fname)) {
 				insert(fname, npath, &root, CmpStr);
-				res = (filler(buf, de->d_name, &st, 0));
+				char temp[1024];
+				search_path(npath, temp, root, CmpStr, 0);
+				strncpy(d_name, temp+1, strlen(temp));
+				res = (filler(buf, d_name, &st, 0));
 				if(res!=0) break;
 			}
 		}
@@ -191,47 +218,14 @@ static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	int res;
 	
 	res = list_dir(fpath, buf, filler, offset, fi);
-	//int res = 0;
-	// DIR *dp;
-	// struct dirent *de;
-
-	// (void) offset;
-	// (void) fi;
-
-	// dp = opendir(fpath);
-	// if (dp == NULL)
-	// 	return -errno;
-
-	// while ((de = readdir(dp)) != NULL) {
-	// 	char fname[1024];
-	// 	struct stat st;
-	// 	memset(&st, 0, sizeof(st));
-	// 	st.st_ino = de->d_ino;
-	// 	st.st_mode = de->d_type << 12;
-	// 	sprintf(fname, "%s", de->d_name);
-	// 	//printf("<< name: %s\n",de->d_name);
-	// 	if (!check(fname)) {
-	// 		res = (filler(buf, de->d_name, &st, 0));
-	// 		if(res!=0) break;
-	// 	}
-	// 	//printf("fpath = %s\n",fpath);
-	// }
-
-	// closedir(dp);
-	//res = list_dir(fpath, buf, filler, offset, fi);
+	listed_dir = TRUE;
 	return 0;
 }
 
 static int xmp_read(const char *path, char *buf, size_t size, off_t offset,
 		    struct fuse_file_info *fi)
+    
 {
-    // char fpath[1000];
-	// if(strcmp(path,"/") == 0)
-	// {
-	// 	path=dirpath;
-	// 	sprintf(fpath,"%s",path);
-	// }
-	// else sprintf(fpath, "%s%s",dirpath,path);
 	int res = 0;
     int fd = 0 ;
 	
@@ -254,14 +248,8 @@ static int xmp_read(const char *path, char *buf, size_t size, off_t offset,
 }
 
 static int xmp_statfs(const char *path, struct statvfs *stbuf)
+    
 {
-    // char fpath[1000];
-    // if(strcmp(path,"/") == 0)
-	// {
-	// 	path=dirpath;
-	// 	sprintf(fpath,"%s",path);
-	// }
-	// else sprintf(fpath, "%s%s",dirpath,path);
 	int res;
 	char tmp[1024];
 	sprintf(tmp, "%s", path);
