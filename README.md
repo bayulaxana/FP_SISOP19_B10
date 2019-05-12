@@ -156,7 +156,7 @@ Mengapa hal ini perlu? Karena attribut-attribut dari file diperlukan pada saat p
 
 Maka dari itu, butuh Struktur Data yang dapat menyimpan **nama file** dan **original path**. Struktur Data yang akan digunakan disini adalah Binary Search.
 
--- GAMBAR --
+![alt text](/img/TREE.png)
 
 Struktur Nodenya menyimpan :
 
@@ -250,5 +250,11 @@ typedef struct t_node {
     ```
 
     Fungsi search_path() digunakan untuk mencari path ketika terdapat file yang namanya duplikat. Parameternya menerima path dari file yang duplikat.
+
+- Pada bagian **pre_init()**, pertama yang dilakukan adalah meng-insert path root kedalam tree agar dapat dibaca.
+
+    ```c
+    
+    ```
 
 ## Menghubungkan program MP3 Player dengan FUSE
