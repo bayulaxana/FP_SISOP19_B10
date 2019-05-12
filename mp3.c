@@ -64,6 +64,8 @@ int main(int argc, char const *argv[])
     pthread_create(&(tid[0]), NULL, &take_input, NULL);
     pthread_join(tid[0], NULL);
 
+    free_list(head);
+
     return 0;
 }
 
@@ -98,6 +100,10 @@ Node *add_node(Node *list, Node *node, char *str) {
 }
 
 void display_list(Node *head) {
+    if (head == NULL) {
+        printf("\n  No Files Found\n");
+        return;
+    }
     puts("");
     int cnt = 1;
     while(head) {
@@ -191,6 +197,10 @@ void *take_input(void *arg)
         
         printf("===== CONSOLE BASED MP3 PLAYER =====\n");
         printf("========== BY SISOP B10 ============\n");
+
+        if (play_status == FALSE) printf("\nNot Playing\n");
+        else printf("\nNow Playing: %s\n",now_playing);
+
         printf("\nType 'help' to see all available commands!\n");
 
         printf("> ");
@@ -200,7 +210,7 @@ void *take_input(void *arg)
             char x;
             printf("\n  Commands available:\n\n");
             printf("  |- 'play' to play music by the id.\n");
-            printf("  |- 'pause' to pause/resume the current song.\n");
+            printf("  |- 'pause'/'resume' to pause/resume the current song.\n");
             printf("  |- 'next' to play the next song.\n");
             printf("  |- 'prev' to play the previous song.\n");
             printf("  |- 'list' to display list of songs.\n");
@@ -213,6 +223,10 @@ void *take_input(void *arg)
 
         if (strcmp("play", input) == 0) {
             display_list(head);
+            if (head == NULL) {
+                sleep(1);
+                continue;
+            }
             printf("\n  Enter the id of the song: ");
             scanf("%d",&id);
             sprintf(name, "%s", search_by_id(head, id));
@@ -224,10 +238,14 @@ void *take_input(void *arg)
             } 
             else {
                 puts("  |- File not found");
+                sleep(1);
             }
         }
         else if (strcmp("pause", input) == 0) {
-            play_status = (play_status==TRUE? FALSE:TRUE);
+            play_status = FALSE;
+        }
+        else if (strcmp("resume", input) == 0) {
+            play_status = TRUE;
         }
         else if (strcmp("stop", input) == 0) {
             pthread_cancel(tid[1]);
@@ -250,7 +268,7 @@ void *take_input(void *arg)
             pthread_create(&(tid[1]), NULL, &play_song, now_playing);
         } 
         else if (strcmp("exit", input) == 0) {
-            
+            system("clear");
             if (play_status == FALSE) break;
             
             /* clean up */
@@ -260,6 +278,7 @@ void *take_input(void *arg)
             mpg123_delete(mh);
             mpg123_exit();
             ao_shutdown();
+            system("clear");
             break;
         }
     }
